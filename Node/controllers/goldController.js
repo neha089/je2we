@@ -93,7 +93,7 @@ export const createGoldTransaction = async (req, res) => {
     const goldTransaction = new GoldTransaction({
       transactionType,
       customer: customer || null,
-      supplier: transactionType === "BUY" && !customer ? supplier : null,
+      supplier: customer || null,
       items: processedItems,
       advanceAmount: Math.round(advanceAmount  ),
       paymentMode,
@@ -1028,13 +1028,13 @@ export const getGoldTrnsactionByCustomerId = async (req, res) => {
 
     // Fetch transactions, count, and aggregated stats for SELL transactions
     const [transactions, totalCount, aggregateStats] = await Promise.all([
-      GoldTransaction.find({ customer: customerObjectId, transactionType: "SELL" })
+      GoldTransaction.find({ customer: customerObjectId })
         .populate("customer", "name phone email address")
         .sort({ date: -1 })
         .skip(skip)
         .limit(limitNum)
         .lean(),
-      GoldTransaction.countDocuments({ customer: customerObjectId, transactionType: "SELL" }),
+      GoldTransaction.countDocuments({ customer: customerObjectId }),
       GoldTransaction.aggregate([
         {
           $match: { customer: customerObjectId }

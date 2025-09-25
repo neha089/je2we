@@ -3,11 +3,10 @@ import {
   Plus, 
   RefreshCw, 
   AlertCircle,
-  CircleDot,
+  Coins,
   Weight,
   ArrowUpRight,
-  ArrowDownRight,
-  BarChart3
+  ArrowDownRight
 } from 'lucide-react';
 import ApiService from '../services/api';
 import SilverTransactionForm from './SilverBuySell/SilverTransactionForm';
@@ -21,11 +20,12 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
   const [showForm, setShowForm] = useState(false);
   const [viewingTransaction, setViewingTransaction] = useState(null);
   const [summary, setSummary] = useState({
-    totalBuy: 0,
-    totalSell: 0,
-    totalWeight: 0,
-    netProfit: 0,
-    transactionCount: 0,
+    totalBuyAmount: 0,
+    totalBuyWeight: 0,
+    totalBuyTransactions: 0,
+    totalSellAmount: 0,
+    totalSellWeight: 0,
+    totalSellTransactions: 0
   });
 
   useEffect(() => {
@@ -48,15 +48,17 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
   const loadTransactions = async () => {
     try {
       const response = await ApiService.getSilverTrnsactionByCustomerId(customerId);
+      console.log("API Response:", response);
       if (response.success) {
         setTransactions(response.data || []);
         if (response.stats) {
           setSummary({
-            totalBuy: 0, // Since we're focusing on SELL transactions
-            totalSell: response.stats.totalSaleAmount / 100 || 0, // Convert paise to rupees
-            totalWeight: response.stats.totalWeight || 0,
-            netProfit: 0, // Calculate if needed (e.g., based on market rates)
-            transactionCount: response.stats.totalTransactions || 0,
+            totalBuyAmount: (response.stats.buy?.totalSaleAmount || 0) / 100,
+            totalBuyWeight: response.stats.buy?.totalWeight || 0,
+            totalBuyTransactions: response.stats.buy?.totalTransactions || 0,
+            totalSellAmount: (response.stats.sell?.totalSaleAmount || 0) / 100,
+            totalSellWeight: response.stats.sell?.totalWeight || 0,
+            totalSellTransactions: response.stats.sell?.totalTransactions || 0
           });
         }
       } else {
@@ -135,7 +137,7 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
         <div>
           <h3 className="text-lg font-medium text-gray-900">Silver Transactions</h3>
           <p className="text-sm text-gray-500">
-            {customerId ? 'Customer silver sell history' : 'All silver transactions'}
+            {customerId ? 'Customer silver transaction history' : 'All silver transactions'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -149,7 +151,7 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Transaction
@@ -158,51 +160,100 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <ArrowDownRight size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Buy Amount</p>
+              <p className="text-2xl font-bold text-gray-900">
+                ₹{(summary.totalBuyAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">Total amount spent on silver purchases</p>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Weight size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Buy Weight</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {(summary.totalBuyWeight || 0).toFixed(2)}g
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">Total weight of silver purchased</p>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Coins size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Buy Transactions</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {summary.totalBuyTransactions || 0}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">Total number of buy transactions</p>
+        </div>
+
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-red-50 rounded-lg">
               <ArrowUpRight size={20} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Sold</p>
+              <p className="text-sm text-gray-500">Total Sell Amount</p>
               <p className="text-2xl font-bold text-gray-900">
-                ₹{(summary.totalSell || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                ₹{(summary.totalSellAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
-          <p className="text-sm text-gray-600">Total sales to business</p>
+          <p className="text-sm text-gray-600">Total amount from silver sales</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <Weight size={20} className="text-blue-600" />
+            <div className="p-2 bg-red-50 rounded-lg">
+              <Weight size={20} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Weight Sold</p>
-              <p className="text-2xl font-bold text-gray-900">{(summary.totalWeight || 0).toFixed(2)}g</p>
+              <p className="text-sm text-gray-500">Total Sell Weight</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {(summary.totalSellWeight || 0).toFixed(2)}g
+              </p>
             </div>
           </div>
-          <p className="text-sm text-gray-600">Total silver sold</p>
+          <p className="text-sm text-gray-600">Total weight of silver sold</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <BarChart3 size={20} className="text-purple-600" />
+            <div className="p-2 bg-red-50 rounded-lg">
+              <Coins size={20} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Transactions</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.transactionCount || 0}</p>
+              <p className="text-sm text-gray-500">Total Sell Transactions</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {summary.totalSellTransactions || 0}
+              </p>
             </div>
           </div>
-          <p className="text-sm text-gray-600">All sell transactions</p>
+          <p className="text-sm text-gray-600">Total number of sell transactions</p>
         </div>
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hiddenn ">
         {transactions.length > 0 ? (
           <TransactionTable
             transactions={transactions}
@@ -215,17 +266,17 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
           />
         ) : (
           <div className="p-12 text-center">
-            <CircleDot size={48} className="text-gray-300 mx-auto mb-4" />
+            <Coins size={48} className="text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Silver Transactions</h3>
             <p className="text-gray-500 mb-6">
               {customerId 
-                ? "This customer hasn't sold any silver yet" 
+                ? "This customer hasn't made any silver transactions yet" 
                 : "Get started by creating your first silver transaction"
               }
             </p>
             <button
               onClick={() => setShowForm(true)}
-              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800"
+              className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
             >
               Create First Transaction
             </button>
@@ -237,7 +288,7 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
       {showForm && (
         <SilverTransactionForm
           editingTransaction={null}
-          silverRates={null} // Add logic to fetch silver rates if needed
+          silverRates={null}
           onClose={handleFormClose}
           onSuccess={handleFormSuccess}
           onError={setError}
@@ -248,7 +299,7 @@ const SilverTransactionTab = ({ customerId, onRefresh }) => {
         <TransactionViewModal
           transaction={viewingTransaction}
           onClose={() => setViewingTransaction(null)}
-          onEdit={null} // Remove edit functionality
+          onEdit={null}
         />
       )}
     </div>

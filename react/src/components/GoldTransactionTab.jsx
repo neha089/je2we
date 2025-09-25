@@ -20,11 +20,12 @@ const GoldTransactionTab = ({ customerId, onRefresh }) => {
   const [showForm, setShowForm] = useState(false);
   const [viewingTransaction, setViewingTransaction] = useState(null);
   const [summary, setSummary] = useState({
-    totalBuy: 0,
-    totalSell: 0,
-    totalWeight: 0,
-    netProfit: 0,
-    transactionCount: 0,
+    totalBuyAmount: 0,
+    totalBuyWeight: 0,
+    totalBuyTransactions: 0,
+    totalSellAmount: 0,
+    totalSellWeight: 0,
+    totalSellTransactions: 0
   });
 
   useEffect(() => {
@@ -47,16 +48,17 @@ const GoldTransactionTab = ({ customerId, onRefresh }) => {
   const loadTransactions = async () => {
     try {
       const response = await ApiService.getGoldTrnsactionByCustomerId(customerId);
-      console.log("API Response:", response); // Debug log
+      console.log("API Response:", response);
       if (response.success) {
         setTransactions(response.data || []);
         if (response.stats) {
           setSummary({
-            totalBuy: response.stats.buy.totalSaleAmount / 100 || 0, // Convert paise to rupees
-            totalSell: response.stats.sell.totalSaleAmount / 100 || 0,
-            totalWeight: response.stats.sell.totalWeight || 0,
-            netProfit: (response.stats.sell.totalSaleAmount - response.stats.buy.totalSaleAmount) / 100 || 0,
-            transactionCount: response.stats.sell.totalTransactions || 0,
+            totalBuyAmount: (response.stats.buy?.totalSaleAmount || 0) / 100,
+            totalBuyWeight: response.stats.buy?.totalWeight || 0,
+            totalBuyTransactions: response.stats.buy?.totalTransactions || 0,
+            totalSellAmount: (response.stats.sell?.totalSaleAmount || 0) / 100,
+            totalSellWeight: response.stats.sell?.totalWeight || 0,
+            totalSellTransactions: response.stats.sell?.totalTransactions || 0
           });
         }
       } else {
@@ -135,7 +137,7 @@ const GoldTransactionTab = ({ customerId, onRefresh }) => {
         <div>
           <h3 className="text-lg font-medium text-gray-900">Gold Transactions</h3>
           <p className="text-sm text-gray-500">
-            {customerId ? 'Customer gold sell history' : 'All gold transactions'}
+            {customerId ? 'Customer gold transaction history' : 'All gold transactions'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -158,14 +160,50 @@ const GoldTransactionTab = ({ customerId, onRefresh }) => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-green-50 rounded-lg">
               <ArrowDownRight size={20} className="text-green-600" />
             </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Buy Amount</p>
+              <p className="text-2xl font-bold text-gray-900">
+                ₹{(summary.totalBuyAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              </p>
             </div>
-          <p className="text-sm text-gray-600">Total gold bought</p>
+          </div>
+          <p className="text-sm text-gray-600">Total amount spent on gold purchases</p>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Weight size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Buy Weight</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {(summary.totalBuyWeight || 0).toFixed(2)}g
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">Total weight of gold purchased</p>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Coins size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Buy Transactions</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {summary.totalBuyTransactions || 0}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">Total number of buy transactions</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -174,39 +212,43 @@ const GoldTransactionTab = ({ customerId, onRefresh }) => {
               <ArrowUpRight size={20} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Sales</p>
+              <p className="text-sm text-gray-500">Total Sell Amount</p>
               <p className="text-2xl font-bold text-gray-900">
-                ₹{(summary.totalSell || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                ₹{(summary.totalSellAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
-          <p className="text-sm text-gray-600">Total gold sold to business</p>
+          <p className="text-sm text-gray-600">Total amount from gold sales</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-yellow-50 rounded-lg">
-              <Weight size={20} className="text-yellow-600" />
+            <div className="p-2 bg-red-50 rounded-lg">
+              <Weight size={20} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Weight Sold</p>
-              <p className="text-2xl font-bold text-gray-900">{(summary.totalWeight || 0).toFixed(2)}g</p>
+              <p className="text-sm text-gray-500">Total Sell Weight</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {(summary.totalSellWeight || 0).toFixed(2)}g
+              </p>
             </div>
           </div>
-          <p className="text-sm text-gray-600">Total gold sold</p>
+          <p className="text-sm text-gray-600">Total weight of gold sold</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <Coins size={20} className="text-purple-600" />
+            <div className="p-2 bg-red-50 rounded-lg">
+              <Coins size={20} className="text-red-600" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Sell Transactions</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.transactionCount || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {summary.totalSellTransactions || 0}
+              </p>
             </div>
           </div>
-          <p className="text-sm text-gray-600">All sell transactions</p>
+          <p className="text-sm text-gray-600">Total number of sell transactions</p>
         </div>
       </div>
 
@@ -228,7 +270,7 @@ const GoldTransactionTab = ({ customerId, onRefresh }) => {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Gold Transactions</h3>
             <p className="text-gray-500 mb-6">
               {customerId 
-                ? "This customer hasn't sold any gold yet" 
+                ? "This customer hasn't made any gold transactions yet" 
                 : "Get started by creating your first gold transaction"
               }
             </p>
@@ -246,7 +288,7 @@ const GoldTransactionTab = ({ customerId, onRefresh }) => {
       {showForm && (
         <GoldTransactionForm
           editingTransaction={null}
-          goldRates={null} // Add logic to fetch gold rates if needed
+          goldRates={null}
           onClose={handleFormClose}
           onSuccess={handleFormSuccess}
           onError={setError}

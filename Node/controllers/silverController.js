@@ -94,7 +94,7 @@ export const createSilverTransaction = async (req, res) => {
     const silverTransaction = new SilverTransaction({
       transactionType,
       customer: customer || null,
-      supplier: transactionType === "BUY" && !customer ? supplier : null,
+      supplier: customer || null,
       items: processedItems,
       advanceAmount: Math.round(advanceAmount ), // Convert to paise
       paymentMode,
@@ -793,7 +793,8 @@ export const getProfitLossAnalysis = async (req, res) => {
       error: error.message
     });
   }
-};export const getSilverTrnsactionByCustomerId = async (req, res) => {
+};
+export const getSilverTrnsactionByCustomerId = async (req, res) => {
   try {
     const { customerId } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -817,29 +818,24 @@ export const getProfitLossAnalysis = async (req, res) => {
     }
 
     const skip = (pageNum - 1) * limitNum;
-
-    // Convert customerId to ObjectId for consistent querying
     const customerObjectId = new mongoose.Types.ObjectId(customerId);
 
     // Fetch transactions, count, and aggregated stats for SELL transactions
     const [transactions, totalCount, aggregateStats] = await Promise.all([
-      SilverTransaction.find({ customer: customerObjectId, transactionType: "SELL" })
+      SilverTransaction.find({ customer: customerObjectId })
         .populate("customer", "name phone email address")
         .sort({ date: -1 })
         .skip(skip)
         .limit(limitNum)
-        .lean(), // Use lean() for performance
-      SilverTransaction.countDocuments({ customer: customerObjectId, transactionType: "SELL" }),
+        .lean(),
+      SilverTransaction.countDocuments({ customer: customerObjectId }),
       SilverTransaction.aggregate([
         {
-          $match: {
-            customer: customerObjectId,
-            transactionType: "SELL",
-          },
+          $match: { customer: customerObjectId }
         },
         {
           $group: {
-            _id: null,
+            _id: "$transactionType",
             totalSaleAmount: { $sum: "$totalAmount" },
             totalWeight: { $sum: "$totalWeight" },
             totalTransactions: { $sum: 1 },
@@ -854,10 +850,18 @@ export const getProfitLossAnalysis = async (req, res) => {
     console.log("Aggregate stats:", aggregateStats);
 
     const totalPages = Math.ceil(totalCount / limitNum);
-    const stats =
-      aggregateStats.length > 0
-        ? aggregateStats[0]
-        : { totalSaleAmount: 0, totalWeight: 0, totalTransactions: 0 };
+    const stats = {
+      buy: aggregateStats.find((s) => s._id === "BUY") || {
+        totalSaleAmount: 0,
+        totalWeight: 0,
+        totalTransactions: 0,
+      },
+      sell: aggregateStats.find((s) => s._id === "SELL") || {
+        totalSaleAmount: 0,
+        totalWeight: 0,
+        totalTransactions: 0,
+      },
+    };
 
     res.json({
       success: true,

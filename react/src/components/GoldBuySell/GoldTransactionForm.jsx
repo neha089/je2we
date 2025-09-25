@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, RefreshCw, Lock } from 'lucide-react';
 import ApiService from '../../services/api';
@@ -26,14 +25,7 @@ const GoldTransactionForm = ({
   const [formData, setFormData] = useState({
     transactionType: 'BUY',
     customerId: '',
-    supplierId: '',
     customerData: {
-      name: '',
-      phone: '',
-      email: '',
-      address: ''
-    },
-    supplierData: {
       name: '',
       phone: '',
       email: '',
@@ -72,24 +64,32 @@ const GoldTransactionForm = ({
 
   const populateEditForm = () => {
     const transaction = editingTransaction;
-    
     const original = transaction.Amount ? transaction.Amount : 0;
-    
+
+    // Use customer data for both BUY and SELL
+    const personName = transaction.customer?.name || 
+                      (transaction.customer?.firstName + ' ' + (transaction.customer?.lastName || '')) || 
+                      (transaction.supplier?.name || 
+                      (transaction.supplier?.firstName + ' ' + (transaction.supplier?.lastName || ''))) || 'N/A';
+    const personPhone = transaction.customer?.phone || transaction.customer?.phoneNumber || 
+                        transaction.supplier?.phone || transaction.supplier?.phoneNumber || '';
+    const personEmail = transaction.customer?.email || transaction.supplier?.email || '';
+    const personAddress = transaction.customer?.address || transaction.supplier?.address || '';
+    const formattedAddress = typeof personAddress === 'string' 
+      ? personAddress 
+      : personAddress && typeof personAddress === 'object'
+        ? [personAddress.street, personAddress.city, personAddress.state, personAddress.pincode]
+            .filter(Boolean).join(', ')
+        : '';
+
     setFormData({
       transactionType: transaction.transactionType,
-      customerId: transaction.customer?._id || '',
-      supplierId: transaction.supplier?._id || '',
+      customerId: transaction.customer?._id || transaction.supplier?._id || '',
       customerData: {
-        name: getPersonName(transaction),
-        phone: getPersonPhone(transaction),
-        email: getPersonEmail(transaction),
-        address: getPersonAddress(transaction)
-      },
-      supplierData: {
-        name: getPersonName(transaction),
-        phone: getPersonPhone(transaction),
-        email: getPersonEmail(transaction),
-        address: getPersonAddress(transaction)
+        name: personName,
+        phone: personPhone,
+        email: personEmail,
+        address: formattedAddress
       },
       Amount: original,
       originalAmount: original,
@@ -100,15 +100,14 @@ const GoldTransactionForm = ({
       billNumber: transaction.invoiceNumber || ''
     });
 
-    const personName = getPersonName(transaction);
     if (personName && personName !== 'N/A') {
       setCustomerSearchTerm(personName);
       setSelectedCustomer({
-        _id: transaction.transactionType === 'SELL' ? transaction.customer?._id : transaction.supplier?._id,
+        _id: transaction.customer?._id || transaction.supplier?._id,
         name: personName,
-        phone: getPersonPhone(transaction),
-        email: getPersonEmail(transaction),
-        address: getPersonAddress(transaction)
+        phone: personPhone,
+        email: personEmail,
+        address: formattedAddress
       });
     }
 
@@ -119,10 +118,10 @@ const GoldTransactionForm = ({
         description: item.description || '',
         purity: item.purity || '925',
         weight: item.weight ? item.weight.toString() : '',
-        ratePerGram: item.ratePerGram ? (item.ratePerGram).toString() : '',
-        makingCharges: item.makingCharges ? (item.makingCharges).toString() : '0',
+        ratePerGram: item.ratePerGram ? item.ratePerGram.toString() : '',
+        makingCharges: item.makingCharges ? item.makingCharges.toString() : '0',
         wastage: item.wastage ? item.wastage.toString() : '0',
-        taxAmount: item.taxAmount ? (item.taxAmount).toString() : '0',
+        taxAmount: item.taxAmount ? item.taxAmount.toString() : '0',
         photos: item.photos || [],
         hallmarkNumber: item.hallmarkNumber || '',
         certificateNumber: item.certificateNumber || ''
@@ -131,64 +130,12 @@ const GoldTransactionForm = ({
     }
   };
 
-  const getPersonName = (transaction) => {
-    if (transaction.transactionType === 'SELL' && transaction.customer) {
-      return transaction.customer.name || (transaction.customer.firstName + ' ' + (transaction.customer.lastName || '')) || 'N/A';
-    }
-    if (transaction.transactionType === 'BUY' && transaction.supplier) {
-      return transaction.supplier.name || (transaction.supplier.firstName + ' ' + (transaction.supplier.lastName || '')) || 'N/A';
-    }
-    return 'N/A';
-  };
-
-  const getPersonPhone = (transaction) => {
-    if (transaction.transactionType === 'SELL' && transaction.customer) {
-      return transaction.customer.phone || transaction.customer.phoneNumber || '';
-    }
-    if (transaction.transactionType === 'BUY' && transaction.supplier) {
-      return transaction.supplier.phone || transaction.supplier.phoneNumber || '';
-    }
-    return '';
-  };
-
-  const getPersonEmail = (transaction) => {
-    if (transaction.transactionType === 'SELL' && transaction.customer) {
-      return transaction.customer.email || '';
-    }
-    if (transaction.transactionType === 'BUY' && transaction.supplier) {
-      return transaction.supplier.email || '';
-    }
-    return '';
-  };
-
-  const getPersonAddress = (transaction) => {
-    if (transaction.transactionType === 'SELL' && transaction.customer) {
-      const address = transaction.customer.address;
-      if (typeof address === 'string') return address;
-      if (address && typeof address === 'object') {
-        return [address.street, address.city, address.state, address.pincode]
-          .filter(Boolean).join(', ');
-      }
-      return '';
-    }
-    if (transaction.transactionType === 'BUY' && transaction.supplier) {
-      const address = transaction.supplier.address;
-      if (typeof address === 'string') return address;
-      if (address && typeof address === 'object') {
-        return [address.street, address.city, address.state, address.pincode]
-          .filter(Boolean).join(', ');
-      }
-      return '';
-    }
-    return '';
-  };
-
   const handleCustomerSelect = (customer) => {
     if (isEditing) return;
-    
+
     setSelectedCustomer(customer);
     setCustomerSearchTerm(customer.name || `${customer.firstName} ${customer.lastName || ''}`.trim());
-    
+
     const customerName = customer.name || `${customer.firstName} ${customer.lastName || ''}`.trim();
     const customerPhone = customer.phone || customer.phoneNumber || '';
     const customerEmail = customer.email || '';
@@ -196,29 +143,26 @@ const GoldTransactionForm = ({
       ? customer.address 
       : customer.address?.street 
         ? [customer.address.street, customer.address.city, customer.address.state, customer.address.pincode]
-          .filter(Boolean).join(', ') 
+            .filter(Boolean).join(', ') 
         : '';
 
-    if (formData.transactionType === 'SELL') {
-      setFormData(prev => ({
-        ...prev,
-        customerId: customer._id,
-        customerData: {
-          name: customerName,
-          phone: customerPhone,
-          email: customerEmail,
-          address: customerAddress
-        }
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      customerId: customer._id,
+      customerData: {
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail,
+        address: customerAddress
+      }
+    }));
     setShowCreateCustomer(false);
   };
 
   const handleCreateCustomer = useCallback(() => {
     if (isEditing) return;
-    
-    let initialData = {};
 
+    let initialData = {};
     if (customerSearchTerm && !customerSearchTerm.includes("+91") && customerSearchTerm.length > 2) {
       const nameParts = customerSearchTerm.trim().split(" ");
       initialData = {
@@ -234,13 +178,12 @@ const GoldTransactionForm = ({
   const handleCustomerCreated = (newCustomer) => {
     setSelectedCustomer(newCustomer);
     setShowCreateCustomer(false);
-    
     handleCustomerSelect(newCustomer);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
@@ -273,11 +216,11 @@ const GoldTransactionForm = ({
       const making = parseFloat(item.makingCharges) || 0;
       const wastage = parseFloat(item.wastage) || 0;
       const tax = parseFloat(item.taxAmount) || 0;
-      
+
       const baseAmount = weight * rate;
-      const wastageAmount = (baseAmount * wastage) ;
+      const wastageAmount = (baseAmount * wastage) / 100;
       const itemTotal = baseAmount + wastageAmount + making + tax;
-      
+
       return total + itemTotal;
     }, 0);
 
@@ -311,7 +254,7 @@ const GoldTransactionForm = ({
       const hasValidItems = items.some(item => 
         item.itemName && parseFloat(item.weight) > 0 && parseFloat(item.ratePerGram) > 0
       );
-      
+
       if (!hasValidItems) {
         console.error('Validation failed: Invalid items');
         onError('Please add at least one valid item with name, weight, and rate');
@@ -320,33 +263,26 @@ const GoldTransactionForm = ({
 
       if (isEditing) {
         console.log('=== HANDLING UPDATE ===');
-        
-        if (!formData.customerId && !formData.supplierId) {
-          console.error('Validation failed: No customer/supplier ID for editing');
-          onError('Missing customer/supplier information for update');
+
+        if (!formData.customerId) {
+          console.error('Validation failed: No customer ID for editing');
+          onError('Missing customer information for update');
           return;
         }
-        
+
         const original = parseFloat(formData.originalAmount) || 0;
         const additionalPayment = parseFloat(formData.additionalPayment) || 0;
         const newTotal = original + additionalPayment;
-        
+
         console.log('Payment calculation:', {
           original,
           additionalPayment,
           newTotal
         });
-        
+
         const updateData = {
           transactionType: formData.transactionType,
-          
-          ...(formData.transactionType === 'SELL' && formData.customerId && { 
-            customer: formData.customerId 
-          }),
-          ...(formData.transactionType === 'BUY' && formData.supplierId && { 
-            supplier: formData.supplierId 
-          }),
-          
+          customer: formData.customerId,
           items: items.map(item => ({
             name: item.itemName,
             itemName: item.itemName,
@@ -361,7 +297,6 @@ const GoldTransactionForm = ({
             hallmarkNumber: item.hallmarkNumber || '',
             certificateNumber: item.certificateNumber || ''
           })),
-          
           Amount: newTotal,
           paymentMode: additionalPayment > 0 ? formData.additionalPaymentMode : formData.paymentMode,
           notes: formData.notes || "",
@@ -384,10 +319,10 @@ const GoldTransactionForm = ({
 
         console.log('Calling ApiService.updateGoldTransaction...');
         const response = await ApiService.updateGoldTransaction(transactionId, updateData);
-        
+
         console.log('=== UPDATE RESPONSE ===');
         console.log('Response:', response);
-        
+
         if (response && (response.success !== false) && !response.error) {
           console.log('✅ Update successful');
           onSuccess();
@@ -398,14 +333,13 @@ const GoldTransactionForm = ({
         }
       } else {
         console.log('=== HANDLING CREATE ===');
-        
-        const currentData = formData.transactionType === 'SELL' ? formData.customerData : formData.supplierData;
-        if (!currentData.name) {
-          console.error('Validation failed: No customer/supplier name');
-          onError(`Please enter ${formData.transactionType === 'SELL' ? 'customer' : 'supplier'} name`);
+
+        if (!formData.customerData.name) {
+          console.error('Validation failed: No customer name');
+          onError('Please enter customer name');
           return;
         }
-        
+
         const transactionData = {
           transactionType: formData.transactionType,
           items: items.map(item => ({
@@ -425,27 +359,18 @@ const GoldTransactionForm = ({
           paymentMode: formData.paymentMode,
           notes: formData.notes,
           billNumber: formData.billNumber,
-          fetchCurrentRates: true
+          fetchCurrentRates: true,
+          customer: selectedCustomer?._id ? selectedCustomer._id : formData.customerData
         };
-
-        if (formData.transactionType === 'SELL') {
-          if (selectedCustomer && selectedCustomer._id) {
-            transactionData.customer = selectedCustomer._id;
-          } else {
-            transactionData.customer = formData.customerData;
-          }
-        } else {
-          transactionData.supplier = formData.supplierData;
-        }
 
         console.log('=== SENDING CREATE DATA ===');
         console.log('Create payload:', JSON.stringify(transactionData, null, 2));
 
         const response = await ApiService.createGoldTransaction(transactionData);
-        
+
         console.log('=== CREATE RESPONSE ===');
         console.log('Response:', response);
-        
+
         if (response && (response.success !== false) && !response.error) {
           console.log('✅ Create successful');
           onSuccess();
@@ -460,7 +385,7 @@ const GoldTransactionForm = ({
       console.error('Error object:', error);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
-      
+
       const errorMessage = isEditing ? 'Failed to update transaction' : 'Failed to create transaction';
       onError(`${errorMessage}: ${error.message}`);
     } finally {
@@ -475,20 +400,18 @@ const GoldTransactionForm = ({
     console.log('Button disabled?', loading || items.length === 0);
     console.log('Items length:', items.length);
     console.log('Loading state:', loading);
-    
+
     handleSubmit(e);
   };
 
   const handleTransactionTypeChange = (type) => {
     if (isEditing) return;
-    
+
     setFormData(prev => ({
       ...prev,
       transactionType: type,
       customerId: '',
-      supplierId: '',
-      customerData: { name: '', phone: '', email: '', address: '' },
-      supplierData: { name: '', phone: '', email: '', address: '' }
+      customerData: { name: '', phone: '', email: '', address: '' }
     }));
     setCustomerSearchTerm('');
     setSelectedCustomer(null);
@@ -523,7 +446,7 @@ const GoldTransactionForm = ({
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
               {isEditing ? 'Edit' : 'New'} Gold Transaction
-              {isEditing && <span className="text-sm text-gray-500 ml-2">({formData.transactionType === 'SELL' ? 'Customer' : 'Supplier'} details are locked)</span>}
+              {isEditing && <span className="text-sm text-gray-500 ml-2">(Customer details are locked)</span>}
             </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="w-6 h-6" />
@@ -566,11 +489,11 @@ const GoldTransactionForm = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {formData.transactionType === 'SELL' ? 'Customer' : 'Supplier'} Details
+                  Customer Details
                   {isEditing && <Lock className="w-4 h-4 inline ml-2 text-gray-500" />}
                 </h3>
-                
-                {formData.transactionType === 'SELL' && !isEditing && (
+
+                {!isEditing && (
                   <div className="relative">
                     <CustomerSearch
                       onCustomerSelect={handleCustomerSelect}
@@ -584,17 +507,15 @@ const GoldTransactionForm = ({
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {formData.transactionType === 'SELL' ? 'Customer' : 'Supplier'} Name *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
                     <input
                       type="text"
-                      name={formData.transactionType === 'SELL' ? 'customerData.name' : 'supplierData.name'}
-                      value={formData.transactionType === 'SELL' ? formData.customerData.name : formData.supplierData.name}
+                      name="customerData.name"
+                      value={formData.customerData.name}
                       onChange={handleInputChange}
                       disabled={isEditing}
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-600 focus:border-transparent ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                      placeholder={`Enter ${formData.transactionType === 'SELL' ? 'customer' : 'supplier'} name`}
+                      placeholder="Enter customer name"
                     />
                   </div>
 
@@ -602,8 +523,8 @@ const GoldTransactionForm = ({
                     <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                     <input
                       type="tel"
-                      name={formData.transactionType === 'SELL' ? 'customerData.phone' : 'supplierData.phone'}
-                      value={formData.transactionType === 'SELL' ? formData.customerData.phone : formData.supplierData.phone}
+                      name="customerData.phone"
+                      value={formData.customerData.phone}
                       onChange={handleInputChange}
                       disabled={isEditing}
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-600 focus:border-transparent ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
@@ -614,8 +535,8 @@ const GoldTransactionForm = ({
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <input
                       type="email"
-                      name={formData.transactionType === 'SELL' ? 'customerData.email' : 'supplierData.email'}
-                      value={formData.transactionType === 'SELL' ? formData.customerData.email : formData.supplierData.email}
+                      name="customerData.email"
+                      value={formData.customerData.email}
                       onChange={handleInputChange}
                       disabled={isEditing}
                       className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-600 focus:border-transparent ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
@@ -625,8 +546,8 @@ const GoldTransactionForm = ({
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
                     <textarea
-                      name={formData.transactionType === 'SELL' ? 'customerData.address' : 'supplierData.address'}
-                      value={formData.transactionType === 'SELL' ? formData.customerData.address : formData.supplierData.address}
+                      name="customerData.address"
+                      value={formData.customerData.address}
                       onChange={handleInputChange}
                       rows={3}
                       disabled={isEditing}
@@ -651,11 +572,11 @@ const GoldTransactionForm = ({
                     <span className="text-sm text-gray-600">Total Amount:</span>
                     <span className="font-bold text-lg">₹{totalAmount.toFixed(2)}</span>
                   </div>
-                  
+
                   {isEditing && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Original :</span>
+                        <span className="text-sm text-gray-600">Original Amount:</span>
                         <span className="font-medium">₹{formData.originalAmount.toFixed(2)}</span>
                       </div>
                       {parseFloat(formData.additionalPayment) > 0 && (
@@ -724,7 +645,7 @@ const GoldTransactionForm = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Original </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Original Amount</label>
                     <input
                       type="number"
                       value={formData.originalAmount}
@@ -736,7 +657,7 @@ const GoldTransactionForm = ({
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2"> Amount (₹)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Amount (₹)</label>
                     <input
                       type="number"
                       name="Amount"
@@ -794,11 +715,11 @@ const GoldTransactionForm = ({
                 <span className="text-lg font-medium text-gray-700">Total Amount:</span>
                 <span className="text-2xl font-bold text-gray-900">₹{totalAmount.toFixed(2)}</span>
               </div>
-              
+
               {isEditing ? (
                 <>
                   <div className="flex justify-between items-center mt-2 text-sm text-gray-600">
-                    <span>Original :</span>
+                    <span>Original Amount:</span>
                     <span>₹{formData.originalAmount.toFixed(2)}</span>
                   </div>
                   {parseFloat(formData.additionalPayment) > 0 && (
@@ -859,7 +780,7 @@ const GoldTransactionForm = ({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-blue-900 mb-2">Update Instructions:</h4>
                 <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• {formData.transactionType === 'SELL' ? 'Customer' : 'Supplier'} details are locked and cannot be modified</li>
+                  <li>• Customer details are locked and cannot be modified</li>
                   <li>• You can modify items, quantities, rates, and other transaction details</li>
                   <li>• Add additional payments to complete remaining balance</li>
                   <li>• Transaction type cannot be changed</li>
@@ -875,4 +796,3 @@ const GoldTransactionForm = ({
 };
 
 export default GoldTransactionForm;
-

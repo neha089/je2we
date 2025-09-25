@@ -51,7 +51,7 @@ export const getPersonDetailsFromTransaction = (transaction) => {
   if (!transaction) return null;
   
   const isCustomerTransaction = transaction.transactionType === 'SELL';
-  const person = isCustomerTransaction ? transaction.customer : transaction.supplier;
+  const person =  transaction.customer;
   
   if (!person) return null;
   
