@@ -9,7 +9,7 @@ const GoldTransactionForm = ({
   onClose, 
   onSuccess, 
   onError,
-  selectedCustomer,
+  initialCustomer,
   initialTransactionType
 }) => {
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ const GoldTransactionForm = ({
 
   const [formData, setFormData] = useState({
     transactionType: initialTransactionType || 'BUY',
-    customerId: selectedCustomer?._id || '',
+    customerId: initialCustomer?._id || '',
     Amount: 0,
     paymentMode: 'CASH',
     notes: '',
@@ -49,7 +49,7 @@ const GoldTransactionForm = ({
 
     setFormData({
       transactionType: transaction.transactionType,
-      customerId: transaction.customer?._id || transaction.supplier?._id || selectedCustomer?._id || '',
+      customerId: transaction.customer?._id || transaction.supplier?._id || initialCustomer?._id || '',
       Amount: original,
       originalAmount: original,
       additionalPayment: 0,

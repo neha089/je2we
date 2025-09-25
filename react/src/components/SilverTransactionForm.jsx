@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, Lock } from 'lucide-react';
 import ApiService from '../services/api';
-import MetalPriceService from '../services/metalPriceService';
 import MetalItemsManager from './MetalItemsManager';
 
 const SilverTransactionForm = ({ 
@@ -10,7 +9,7 @@ const SilverTransactionForm = ({
   onClose, 
   onSuccess, 
   onError,
-  selectedCustomer,
+  initialCustomer,
   initialTransactionType
 }) => {
   const [loading, setLoading] = useState(false);
@@ -20,18 +19,7 @@ const SilverTransactionForm = ({
 
   const [formData, setFormData] = useState({
     transactionType: initialTransactionType || 'BUY',
-    customerId: selectedCustomer?._id || '',
-    customerData: {
-      name: selectedCustomer?.name || '',
-      phone: selectedCustomer?.phone || '',
-      email: selectedCustomer?.email || '',
-      address: typeof selectedCustomer?.address === 'string' 
-        ? selectedCustomer.address 
-        : selectedCustomer?.address?.street 
-          ? [selectedCustomer.address.street, selectedCustomer.address.city, selectedCustomer.address.state, selectedCustomer.address.pincode]
-              .filter(Boolean).join(', ')
-          : ''
-    },
+    customerId: initialCustomer?._id || '',
     Amount: 0,
     paymentMode: 'CASH',
     notes: '',
@@ -42,7 +30,7 @@ const SilverTransactionForm = ({
   });
 
   useEffect(() => {
-    loadCurrentPrices();
+   
   }, []);
 
   useEffect(() => {
@@ -54,44 +42,14 @@ const SilverTransactionForm = ({
     }
   }, [editingTransaction]);
 
-  const loadCurrentPrices = async () => {
-    try {
-      const prices = await MetalPriceService.getCurrentPrices();
-      setCurrentPrices(prices.Silver);
-    } catch (error) {
-      console.error('Error loading current prices:', error);
-      onError('Failed to load current silver prices');
-    }
-  };
-
+  
   const populateEditForm = () => {
     const transaction = editingTransaction;
     const original = transaction.Amount ? transaction.Amount : 0;
 
-    const personName = transaction.customer?.name || 
-                      (transaction.customer?.firstName + ' ' + (transaction.customer?.lastName || '')) || 
-                      (transaction.supplier?.name || 
-                      (transaction.supplier?.firstName + ' ' + (transaction.supplier?.lastName || ''))) || 'N/A';
-    const personPhone = transaction.customer?.phone || transaction.customer?.phoneNumber || 
-                        transaction.supplier?.phone || transaction.supplier?.phoneNumber || '';
-    const personEmail = transaction.customer?.email || transaction.supplier?.email || '';
-    const personAddress = transaction.customer?.address || transaction.supplier?.address || '';
-    const formattedAddress = typeof personAddress === 'string' 
-      ? personAddress 
-      : personAddress && typeof personAddress === 'object'
-        ? [personAddress.street, personAddress.city, personAddress.state, personAddress.pincode]
-            .filter(Boolean).join(', ')
-        : '';
-
     setFormData({
       transactionType: transaction.transactionType,
-      customerId: transaction.customer?._id || transaction.supplier?._id || '',
-      customerData: {
-        name: personName,
-        phone: personPhone,
-        email: personEmail,
-        address: formattedAddress
-      },
+      customerId: transaction.customer?._id || transaction.supplier?._id || initialCustomer?._id || '',
       Amount: original,
       originalAmount: original,
       additionalPayment: 0,
@@ -122,22 +80,10 @@ const SilverTransactionForm = ({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const calculateTotals = () => {
@@ -167,6 +113,7 @@ const SilverTransactionForm = ({
   };
 
   const handleSubmit = async (e) => {
+    console.log('Submitting form with data:', formData, 'and items:', items);
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -241,8 +188,8 @@ const SilverTransactionForm = ({
           onError(errorMessage);
         }
       } else {
-        if (!formData.customerData.name) {
-          onError('Customer name is required');
+        if (!formData.customerId) {
+          onError('Customer ID is required');
           return;
         }
 
@@ -266,10 +213,11 @@ const SilverTransactionForm = ({
           notes: formData.notes,
           billNumber: formData.billNumber,
           fetchCurrentRates: true,
-          customer: selectedCustomer?._id ? selectedCustomer._id : formData.customerData
+          customer: formData.customerId
         };
-
+        console.log('Creating transaction with data:', transactionData);
         const response = await ApiService.createSilverTransaction(transactionData);
+            console.log('API response:', response);
 
         if (response && (response.success !== false) && !response.error) {
           onSuccess();
@@ -297,7 +245,7 @@ const SilverTransactionForm = ({
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
               {isEditing ? 'Edit' : 'New'} Silver Transaction
-              {isEditing && <span className="text-sm text-gray-500 ml-2">(Customer details and transaction type are locked)</span>}
+              {isEditing && <span className="text-sm text-gray-500 ml-2">(Transaction type is locked)</span>}
             </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="w-6 h-6" />
@@ -335,96 +283,45 @@ const SilverTransactionForm = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Customer Details
-                  <Lock className="w-4 h-4 inline ml-2 text-gray-500" />
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
-                    <input
-                      type="text"
-                      name="customerData.name"
-                      value={formData.customerData.name}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <input
-                      type="tel"
-                      name="customerData.phone"
-                      value={formData.customerData.phone}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input
-                      type="email"
-                      name="customerData.email"
-                      value={formData.customerData.email}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                    <textarea
-                      name="customerData.address"
-                      value={formData.customerData.address}
-                      disabled
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900">Transaction Summary</h3>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Total Items:</span>
+                  <span className="font-medium">{items.length}</span>
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900">Transaction Summary</h3>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Items:</span>
-                    <span className="font-medium">{items.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Weight:</span>
-                    <span className="font-medium">{totalWeight.toFixed(2)} grams</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="text-sm text-gray-600">Total Amount:</span>
-                    <span className="font-bold text-lg">₹{totalAmount.toFixed(2)}</span>
-                  </div>
-                  {isEditing && (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Original Amount:</span>
-                        <span className="font-medium">₹{formData.originalAmount.toFixed(2)}</span>
-                      </div>
-                      {parseFloat(formData.additionalPayment) > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Additional Payment:</span>
-                          <span className="font-medium text-green-600">₹{parseFloat(formData.additionalPayment).toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-sm text-gray-600">Total Paid:</span>
-                        <span className="font-bold">₹{totalPaidAmount.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Remaining:</span>
-                        <span className={`font-bold ${remainingAmount <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ₹{remainingAmount.toFixed(2)}
-                        </span>
-                      </div>
-                    </>
-                  )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Total Weight:</span>
+                  <span className="font-medium">{totalWeight.toFixed(2)} grams</span>
                 </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="text-sm text-gray-600">Total Amount:</span>
+                  <span className="font-bold text-lg">₹{totalAmount.toFixed(2)}</span>
+                </div>
+                {isEditing && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Original Amount:</span>
+                      <span className="font-medium">₹{formData.originalAmount.toFixed(2)}</span>
+                    </div>
+                    {parseFloat(formData.additionalPayment) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Additional Payment:</span>
+                        <span className="font-medium text-green-600">₹{parseFloat(formData.additionalPayment).toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="text-sm text-gray-600">Total Paid:</span>
+                      <span className="font-bold">₹{totalPaidAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Remaining:</span>
+                      <span className={`font-bold ${remainingAmount <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ₹{remainingAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -602,7 +499,7 @@ const SilverTransactionForm = ({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-blue-900 mb-2">Update Instructions:</h4>
                 <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Customer details and transaction type are locked</li>
+                  <li>• Transaction type is locked</li>
                   <li>• You can modify items, quantities, rates, and other transaction details</li>
                   <li>• Add additional payments to complete remaining balance</li>
                   <li>• All changes will be saved when you click "Update Transaction"</li>
