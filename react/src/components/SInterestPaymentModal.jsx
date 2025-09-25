@@ -64,7 +64,7 @@ const SInterestPaymentModal = ({ isOpen, loan, onClose, onPaymentSuccess }) => {
       setError(null);
 
       const interestData = {
-        interestAmount: parseFloat(interestAmount) * 100, // Convert to paise if API expects it
+        interestAmount: parseFloat(interestAmount) , // Convert to paise if API expects it
         paymentDate,
         paymentMethod,
         forMonth,

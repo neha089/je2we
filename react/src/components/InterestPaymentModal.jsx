@@ -64,7 +64,7 @@ const InterestPaymentModal = ({ isOpen, loan, onClose, onPaymentSuccess }) => {
       setError(null);
 
       const interestData = {
-        interestAmount: parseFloat(interestAmount) * 100, // Convert to paise if API expects it
+        interestAmount: parseFloat(interestAmount) , // Convert to paise if API expects it
         paymentDate,
         paymentMethod,
         forMonth,
@@ -78,7 +78,7 @@ const InterestPaymentModal = ({ isOpen, loan, onClose, onPaymentSuccess }) => {
       };
 
       console.log('Sending interest payment data:', { loanId: loan._id, interestData }); // Debug log
-      const response = await ApiService.makeGoldLoanInterestPayment(loan._id, interestData);
+      const response = await ApiService.addInterestPayment(loan._id, interestData);
 
       console.log('API response:', response); // Debug log
       if (response.success) {
