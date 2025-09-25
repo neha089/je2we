@@ -9,8 +9,8 @@ import LInterestPaymentModal from "../Loan/LInterestPaymentModal";
 import LoanPaymentModal from "../Loan/LoanPaymentModal";
 import AddUdharModal from "../AddUdhariModal";
 import UdhariPaymentModal from "../Udhaar/UdhariPaymentModal";
-import GoldTransactionForm from "../GoldBuySell/GoldTransactionForm";
-import SilverTransactionForm from "../SilverBuySell/SilverTransactionForm";
+import GoldTransactionForm from "../GoldTransactionForm";
+import SilverTransactionForm from "../SilverTransactionForm";
 import AddGoldLoanModal from "../AddGoldLoanModal";
 import AddSilverLoanModal from "../AddSilverLoanModal"; // NEW: Import AddSilverLoanModal
 import InterestPaymentModal from "../InterestPaymentModal";
